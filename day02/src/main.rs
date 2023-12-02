@@ -7,12 +7,14 @@ use std::{
 fn main() {
     println!("--- Part 1 ---");
     part_1();
+    println!("--- Part 2 ---");
+    part_2();
 }
 
 fn part_1() {
     let input = parse_input();
 
-    let target = HashMap::from([("red", 12), ("green", 13), ("blue", 14)]);
+    let target: HashMap<&str, i32> = HashMap::from([("red", 12), ("green", 13), ("blue", 14)]);
 
     let output = input
         .enumerate()
@@ -29,6 +31,27 @@ fn part_1() {
         .sum::<usize>();
 
     println!("Number of possible games: {:?}", output);
+}
+
+fn part_2() {
+    let input = parse_input();
+
+    let output = input
+        // Get max of each cube for all rounds in each game
+        .map(|x| {
+            x.iter().fold(HashMap::new(), |mut acc, y| {
+                y.iter().for_each(|(k, v)| {
+                    acc.insert(k.clone(), *v.max(acc.get(k).unwrap_or(&0)));
+                });
+                acc
+            })
+        })
+        // Multiple the # cubes
+        .map(|x| x.values().fold(1, |acc, y| acc * y))
+        // Sum over games
+        .sum::<i32>();
+
+    println!("The total power is: {}", output)
 }
 
 fn parse_input() -> impl Iterator<Item = Vec<HashMap<String, i32>>> {
