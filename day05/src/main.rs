@@ -9,6 +9,8 @@ use itertools::Itertools;
 fn main() {
     println!("--- Part 1 ---");
     part_1();
+    println!("--- Part 2 ---");
+    part_2();
 }
 
 fn part_1() {
@@ -17,8 +19,7 @@ fn part_1() {
     let loc = seeds
         .iter()
         .map(|seed| {
-            // Traverse maps to find location. This can definitely be solved with recursion,
-            // but to keep things "simple" we (ab)use fold instead.
+            // Traverse maps to find location
             maps.iter().fold(*seed, |curr, set| {
                 let m = set
                     .iter()
@@ -38,6 +39,26 @@ fn part_1() {
         .unwrap();
 
     println!("The minimum location number is: {:?}", loc);
+}
+
+fn part_2() {
+    let (seeds, maps) = parse_input();
+
+    let r = seeds
+        .iter()
+        .tuples()
+        // For each seed range we iterate through the maps, and for each map, we have to compute new ranges.
+        .flat_map(|(seed_start, seed_range)| {
+            maps.iter()
+                .fold(vec![(*seed_start, seed_start + seed_range)], |dest, map| {
+                    dest.iter().flat_map(|&r| map_range(r, map)).collect_vec()
+                })
+        })
+        // Get the minimum range (= minimum start of ranges).
+        .min_by(|a, b| a.0.cmp(&b.0))
+        .unwrap();
+
+    println!("The minimum location number is: {}", r.0);
 }
 
 fn parse_input() -> (Vec<i64>, Vec<HashSet<(i64, i64, i64)>>) {
@@ -90,4 +111,40 @@ fn parse_input() -> (Vec<i64>, Vec<HashSet<(i64, i64, i64)>>) {
         .collect::<Vec<_>>();
 
     (seeds, maps)
+}
+
+// Map a range of values to a new vector of values, using a convertion map.
+fn map_range(src: (i64, i64), map: &HashSet<(i64, i64, i64)>) -> Vec<(i64, i64)> {
+    let (start, end) = src;
+    // Sort by source range start
+    let map_sorted = map.iter().sorted_by(|a, b| a.1.cmp(&b.1));
+
+    let mut dest = Vec::new();
+    let mut ptr = start;
+
+    for &(d, s, r) in map_sorted.clone() {
+        if s + r < start || s > end {
+            // Range is entirely outside src, skip it
+            continue;
+        }
+
+        if ptr < s {
+            // Outside range, do direct mapping
+            dest.push((ptr, s));
+            ptr = s;
+        }
+
+        // Add overlapping part. -s+d here converts from source to dest.
+        dest.push((ptr - s + d, end.min(s + r) - s + d));
+        ptr = end.min(s + r);
+    }
+
+    // Final map range may not cover entire src, in which case we need to directly map this part.
+    let fin = map_sorted.last().unwrap();
+    let map_end = fin.1 + fin.2;
+    if map_end < end {
+        dest.push((map_end, end))
+    }
+
+    dest
 }
